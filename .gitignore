@@ -10,3 +10,4 @@ pyiga/assemblers.c
 *.egg-info/
 .cache
 /docs/build/
+.venv/
