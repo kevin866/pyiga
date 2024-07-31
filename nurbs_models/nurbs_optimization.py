@@ -1,7 +1,7 @@
 import numpy as np
 
 # Superformula generation function
-def superformula(m, n1, n2, n3, a=1, b=1, num_points=1000):
+def superformula(m, n1, n2, n3, a=1, b=1, num_points=100):
     phi = np.linspace(0, 2 * np.pi, num_points)
     r = (np.abs(np.cos(m * phi / 4) / a)**n2 + np.abs(np.sin(m * phi / 4) / b)**n3)**(-1 / n1)
     x = r * np.cos(phi)
@@ -24,7 +24,15 @@ knotvector = utilities.generate_knot_vector(degree, num_ctrlpts)
 
 # Function to calculate distance
 def calculate_distance(nurbs_points, superformula_points):
-    return np.linalg.norm(nurbs_points - superformula_points, axis=1).sum()
+    # Ensure inputs are PyTorch tensors
+    if isinstance(nurbs_points, np.ndarray):
+        nurbs_points = torch.tensor(nurbs_points, dtype=torch.float32, requires_grad=True)
+    if isinstance(superformula_points, np.ndarray):
+        superformula_points = torch.tensor(superformula_points, dtype=torch.float32)
+
+    # Calculate distance
+    distance = torch.norm(nurbs_points - superformula_points, dim=1).sum()
+    return distance
 
 # Placeholder NURBS points calculation (implement proper NURBS evaluation)
 def calculate_nurbs_points(ctrlpts, weights, knotvector, num_points=1000):
@@ -32,7 +40,6 @@ def calculate_nurbs_points(ctrlpts, weights, knotvector, num_points=1000):
     curve = BSpline.Curve()
     curve.degree = degree
     curve.ctrlpts = ctrlpts.tolist()
-    print(knotvector)
     curve.knotvector = knotvector
     curve.weights = weights.tolist()
     # Evaluate curve
@@ -42,24 +49,6 @@ def calculate_nurbs_points(ctrlpts, weights, knotvector, num_points=1000):
 import torch
 import torch.nn as nn
 import torch.optim as optim
-
-class ValidKnotVectorLayer(nn.Module):
-    def __init__(self, degree, num_ctrlpts):
-        super(ValidKnotVectorLayer, self).__init__()
-        self.degree = degree
-        self.num_ctrlpts = num_ctrlpts
-        self.num_knots = self.degree + self.num_ctrlpts + 1
-
-    def forward(self, x):
-        # Ensure non-decreasing order
-        sorted_x, _ = torch.sort(x, dim=-1)
-        # Create valid knot vector with required multiplicities at the ends
-        knot_vector = torch.cat([
-            torch.zeros(self.degree + 1),
-            sorted_x[self.degree + 1:self.num_knots - (self.degree + 1)],
-            torch.ones(self.degree + 1) * sorted_x[-1]
-        ], dim=-1)
-        return knot_vector
 
 # Custom NURBS Generator with valid knot vector layer
 class NURBSGenerator(nn.Module):
@@ -72,12 +61,10 @@ class NURBSGenerator(nn.Module):
             nn.ReLU(),
             nn.Linear(256, output_dim - (degree + num_ctrlpts + 1))
         )
-        self.knot_vector_layer = ValidKnotVectorLayer(degree, num_ctrlpts)
 
     def forward(self, x):
         params = self.fc(x)
-        knot_vector = self.knot_vector_layer(params[:, -self.knot_vector_layer.num_knots:])
-        return torch.cat((params[:, :-self.knot_vector_layer.num_knots], knot_vector), dim=-1)
+        return params
 
 # Initialize model, loss function, and optimizer
 input_dim = 4  # Superformula parameters
@@ -85,10 +72,10 @@ output_dim = num_ctrlpts * 2 + num_ctrlpts + degree + num_ctrlpts + 1  # Control
 model = NURBSGenerator(input_dim, output_dim, degree, num_ctrlpts)
 criterion = nn.MSELoss()
 optimizer = optim.Adam(model.parameters(), lr=0.001)
-
-
+avg_loss = 0
+tot_loss = 0
 # Training loop
-num_epochs = 1000
+num_epochs = 200
 for epoch in range(num_epochs):
     for params, superformula_pts in zip(superformula_params, superformula_points):
         params = torch.tensor(params, dtype=torch.float32)
@@ -96,11 +83,13 @@ for epoch in range(num_epochs):
         
         # Forward pass
         output = model(params)
-        ctrlpts, weights, knotvector = output.split([num_ctrlpts*2, num_ctrlpts, len(knotvector)])
+        ctrlpts, weights = output.split([num_ctrlpts*2, num_ctrlpts])
         ctrlpts = ctrlpts.view(num_ctrlpts, 2)
-        
+        # print(ctrlpts.detach().numpy())
+
         # Calculate NURBS points
-        nurbs_points = calculate_nurbs_points(ctrlpts.detach().numpy(), weights.detach().numpy(), knotvector.detach().numpy())
+        nurbs_points = calculate_nurbs_points(ctrlpts.detach().numpy(), weights.detach().numpy(), knotvector)
+        # print(nurbs_points)
         
         # Calculate loss
         loss = calculate_distance(nurbs_points, superformula_pts.detach().numpy())
@@ -109,6 +98,10 @@ for epoch in range(num_epochs):
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
+        tot_loss+=loss.item()
         
-    if epoch % 100 == 0:
+    avg_loss = tot_loss
+    tot_loss = 0
+    print(avg_loss)
+    if epoch % 10 == 0:
         print(f'Epoch [{epoch}/{num_epochs}], Loss: {loss.item():.4f}')
