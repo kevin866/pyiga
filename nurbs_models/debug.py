@@ -20,7 +20,7 @@ superformula_points = [superformula(*params) for params in superformula_params]
 
 # Initialize NURBS parameters
 degree = 3
-num_ctrlpts = 100
+num_ctrlpts = 10
 knotvector = utilities.generate_knot_vector(degree, num_ctrlpts)
 
 # Function to calculate distance
@@ -74,64 +74,28 @@ def print_grad(grad):
 for param in model.parameters():
     param.register_hook(print_grad)
 
-# Plotting function
-def plot_control_points(ctrlpts, epoch):
-    ctrlpts = ctrlpts.detach().numpy()
-    plt.figure()
-    plt.scatter(ctrlpts[:, 0], ctrlpts[:, 1], c='r', label='Control Points')
-    plt.title(f'Control Points at Epoch {epoch}')
-    plt.xlabel('x')
-    plt.ylabel('y')
-    plt.legend()
-    plt.grid(True)
-    plt.show()
+# Simple training loop to check gradients
+params = torch.tensor([1, 1, 1, 1], dtype=torch.float32)  # Simple test case
+superformula_pts = torch.tensor(superformula(1, 1, 1, 1), dtype=torch.float32)
 
-# Training loop
-num_epochs = 200
-for epoch in range(num_epochs):
-    tot_loss = 0
-    for params, superformula_pts in zip(superformula_params, superformula_points):
-        params = torch.tensor(params, dtype=torch.float32)
-        superformula_pts = torch.tensor(superformula_pts, dtype=torch.float32)
-        
-        # Forward pass
-        output = model(params)
-        ctrlpts, weights = output.split([num_ctrlpts*2, num_ctrlpts])
-        ctrlpts = ctrlpts.view(num_ctrlpts, 2)
-        weights = weights.view(num_ctrlpts)
-        
-        # Print control points before optimization
-        # print(f"Epoch {epoch}, Control Points Before Optimization: {ctrlpts}")
-
-        # Calculate NURBS points
-        nurbs_points = calculate_nurbs_points(ctrlpts.detach().numpy(), weights.detach().numpy(), knotvector)
-        nurbs_points = torch.from_numpy(nurbs_points)
-        print(type(nurbs_points))
-        # Calculate loss
-        # loss = calculate_distance(nurbs_points, superformula_pts.detach().numpy())
-        loss = (nurbs_points - superformula_pts[:num_ctrlpts]).pow(2).sum()
-        
-        # Backward pass and optimization
-        optimizer.zero_grad()
-        loss.backward()
-        
-        # Print gradients
-        for name, param in model.named_parameters():
-            if param.grad is not None:
-                print(f'Gradients for {name} at Epoch {epoch}: {param.grad}')
-            else:
-                print(f'No gradients for {name} at Epoch {epoch}')
-        
-        optimizer.step()
-        
-        # Print control points after optimization
-        # print(f"Epoch {epoch}, Control Points After Optimization: {ctrlpts}")
-
-        tot_loss += loss.item()
-        
-    avg_loss = tot_loss / len(superformula_params)
-    print(f'Epoch [{epoch}/{num_epochs}], Avg Loss: {avg_loss:.4f}')
+for epoch in range(10):
+    output = model(params)
+    ctrlpts, weights = output.split([num_ctrlpts*2, num_ctrlpts])
+    ctrlpts = ctrlpts.view(num_ctrlpts, 2)
+    weights = weights.view(num_ctrlpts)
+    print(type(ctrlpts))
+    # Placeholder loss function to test gradient flow
+    loss = (ctrlpts - superformula_pts[:num_ctrlpts]).pow(2).sum()
     
-    if epoch % 10 == 0:
-        print(f'Epoch [{epoch}/{num_epochs}], Loss: {loss.item():.4f}')
-        plot_control_points(ctrlpts, epoch)
+    optimizer.zero_grad()
+    loss.backward()
+    
+    for name, param in model.named_parameters():
+        if param.grad is not None:
+            print(f'Gradients for {name} at Epoch {epoch}: {param.grad}')
+        else:
+            print(f'No gradients for {name} at Epoch {epoch}')
+    
+    optimizer.step()
+    
+    print(f'Epoch [{epoch}], Loss: {loss.item():.4f}')
