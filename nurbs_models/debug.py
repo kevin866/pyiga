@@ -70,9 +70,9 @@ optimizer = optim.Adam(model.parameters(), lr=0.001)
 def print_grad(grad):
     print('Gradient:', grad)
 
-# Attach hooks to model parameters
-for param in model.parameters():
-    param.register_hook(print_grad)
+# # Attach hooks to model parameters
+# for param in model.parameters():
+#     param.register_hook(print_grad)
 
 # Simple training loop to check gradients
 params = torch.tensor([1, 1, 1, 1], dtype=torch.float32)  # Simple test case
@@ -83,19 +83,23 @@ for epoch in range(10):
     ctrlpts, weights = output.split([num_ctrlpts*2, num_ctrlpts])
     ctrlpts = ctrlpts.view(num_ctrlpts, 2)
     weights = weights.view(num_ctrlpts)
-    print(type(ctrlpts))
+    # print(type(ctrlpts))
+    nurbs_points = calculate_nurbs_points(ctrlpts.detach().numpy(), weights.detach().numpy(), knotvector)
+    nurbs_points = torch.from_numpy(nurbs_points)
+    print(ctrlpts)
+    break
     # Placeholder loss function to test gradient flow
     loss = (ctrlpts - superformula_pts[:num_ctrlpts]).pow(2).sum()
     
     optimizer.zero_grad()
     loss.backward()
     
-    for name, param in model.named_parameters():
-        if param.grad is not None:
-            print(f'Gradients for {name} at Epoch {epoch}: {param.grad}')
-        else:
-            print(f'No gradients for {name} at Epoch {epoch}')
+    # for name, param in model.named_parameters():
+        # if param.grad is not None:
+        #     # print(f'Gradients for {name} at Epoch {epoch}: {param.grad}')
+        # else:
+        #     # print(f'No gradients for {name} at Epoch {epoch}')
     
     optimizer.step()
     
-    print(f'Epoch [{epoch}], Loss: {loss.item():.4f}')
+    # print(f'Epoch [{epoch}], Loss: {loss.item():.4f}')

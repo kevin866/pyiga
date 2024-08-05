@@ -2,12 +2,10 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from geomdl import BSpline
-from geomdl import utilities
 import matplotlib.pyplot as plt
 
 # Superformula generation function
-def superformula(m, n1, n2, n3, a=1, b=1, num_points=10):
+def superformula(m, n1, n2, n3, a=1, b=1, num_points=100):
     phi = np.linspace(0, 2 * np.pi, num_points)
     r = (np.abs(np.cos(m * phi / 4) / a)**n2 + np.abs(np.sin(m * phi / 4) / b)**n3)**(-1 / n1)
     x = r * np.cos(phi)
@@ -18,12 +16,7 @@ def superformula(m, n1, n2, n3, a=1, b=1, num_points=10):
 superformula_params = [(m, n1, n2, n3) for m in range(1, 10) for n1 in range(1, 5) for n2 in range(1, 5) for n3 in range(1, 5)]
 superformula_points = [superformula(*params) for params in superformula_params]
 
-# Initialize NURBS parameters
-degree = 3
-num_ctrlpts = 10
-knotvector = utilities.generate_knot_vector(degree, num_ctrlpts)
-
-
+# Custom NURBS evaluation function
 def basis_function(i, k, u, knot_vector):
     if k == 0:
         return 1.0 if knot_vector[i] <= u < knot_vector[i + 1] else 0.0
@@ -47,6 +40,11 @@ def calculate_nurbs_points(ctrlpts, weights, knotvector, degree, num_points=100,
         nurbs_points.append(numerator / (denominator + epsilon))
     return torch.stack(nurbs_points)
 
+# Initialize NURBS parameters
+degree = 3
+num_ctrlpts = 10
+knotvector = np.concatenate(([0] * (degree + 1), np.linspace(0, 1, num_ctrlpts - degree), [1] * (degree + 1)))
+
 # Custom NURBS Generator with valid knot vector layer
 class NURBSGenerator(nn.Module):
     def __init__(self, input_dim, output_dim, degree, num_ctrlpts):
@@ -56,7 +54,7 @@ class NURBSGenerator(nn.Module):
             nn.ReLU(),
             nn.Linear(128, 256),
             nn.ReLU(),
-            nn.Linear(256, output_dim - (degree + num_ctrlpts + 1))
+            nn.Linear(256, output_dim)
         )
 
     def forward(self, x):
@@ -65,7 +63,7 @@ class NURBSGenerator(nn.Module):
 
 # Initialize model, loss function, and optimizer
 input_dim = 4  # Superformula parameters
-output_dim = num_ctrlpts * 2 + num_ctrlpts + degree + num_ctrlpts + 1  # Control points, weights, and knot vector
+output_dim = num_ctrlpts * 2 + num_ctrlpts  # Control points and weights
 model = NURBSGenerator(input_dim, output_dim, degree, num_ctrlpts)
 criterion = nn.MSELoss()
 optimizer = optim.Adam(model.parameters(), lr=0.001)
@@ -108,18 +106,11 @@ for epoch in range(num_epochs):
         ctrlpts = ctrlpts.requires_grad_()
         weights = weights.requires_grad_()
         
-        # Print control points before optimization
-        # print(f"Epoch {epoch}, Control Points Before Optimization: {ctrlpts}")
-
-        # Calculate NURBS points
-        nurbs_points = calculate_nurbs_points(ctrlpts.detach().numpy(), weights.detach().numpy(), knotvector, degree=degree,num_points=num_ctrlpts)
-        nurbs_points = torch.from_numpy(nurbs_points)
-        print(type(nurbs_points))
-        # Calculate loss
-        # loss = calculate_distance(nurbs_points, superformula_pts.detach().numpy())
-        print(nurbs_points)
+        # Calculate NURBS points using custom function
+        nurbs_points = calculate_nurbs_points(ctrlpts, weights, knotvector, degree)
         
-        loss = (nurbs_points - superformula_pts[:num_ctrlpts]).pow(2).sum()
+        # Calculate loss
+        loss = criterion(nurbs_points, superformula_pts[:nurbs_points.shape[0]])
         
         # Backward pass and optimization
         optimizer.zero_grad()
@@ -134,9 +125,6 @@ for epoch in range(num_epochs):
         
         optimizer.step()
         
-        # Print control points after optimization
-        # print(f"Epoch {epoch}, Control Points After Optimization: {ctrlpts}")
-
         tot_loss += loss.item()
         
     avg_loss = tot_loss / len(superformula_params)
