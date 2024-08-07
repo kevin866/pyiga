@@ -124,7 +124,7 @@ for epoch in range(num_epochs):
     #     print(f'Epoch [{epoch}/{num_epochs}], Loss: {loss.item():.4f}')
     #     # plot_control_points(ctrlpts, epoch)
 # Save the model
-torch.save(model.state_dict(), 'nurbs_generator.pth')
+torch.save(model.state_dict(), 'nurbs_generator_50.pth')
 print("Model saved successfully.")
 
 
