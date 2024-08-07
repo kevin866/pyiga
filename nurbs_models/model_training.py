@@ -2,28 +2,38 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from geomdl import BSpline
-from geomdl import utilities
-import matplotlib.pyplot as plt
+from model_structure import NURBSGenerator
+
 
 # Superformula generation function
-def superformula(m, n1, n2, n3, a=1, b=1, num_points=10):
+def superformula(m, n1, n2, n3, a=1, b=1, num_points=100):
     phi = np.linspace(0, 2 * np.pi, num_points)
     r = (np.abs(np.cos(m * phi / 4) / a)**n2 + np.abs(np.sin(m * phi / 4) / b)**n3)**(-1 / n1)
     x = r * np.cos(phi)
     y = r * np.sin(phi)
     return np.vstack((x, y)).T
 
+
 # Generate a dataset of superformula points
 superformula_params = [(m, n1, n2, n3) for m in range(1, 10) for n1 in range(1, 5) for n2 in range(1, 5) for n3 in range(1, 5)]
 superformula_points = [superformula(*params) for params in superformula_params]
 
-# Initialize NURBS parameters
-degree = 3
-num_ctrlpts = 10
-knotvector = utilities.generate_knot_vector(degree, num_ctrlpts)
+def cal_c(r, a, L0):
+    return np.sqrt(2)*np.sqrt(np.pi*(3+3*r**2+2*r)*a*L0)/(np.pi*(3+3*r**2+2*r))
+def superformula(r, L0, n, a=0.5, d=1, num_res=100):
+    theta = np.linspace(0, 2 * np.pi, num_res)
+    c = cal_c(r,a,L0)
+    result = c*((1+r)-d*(-1)**((n+2)/2)*(r-1)*np.cos(n*theta))
+    x = result * np.cos(theta)
+    y = result * np.sin(theta)
+    return np.vstack((x, y)).T
 
+# Generate a dataset of superformula points
+superformula_params = [(round(r, 2), L0, n, (round(a, 2))) for r in np.arange(0.2, 0.9, 0.1).tolist() for L0 in np.arange(15, 35, 5).tolist()
+                       for n in np.arange(2, 12, 2).tolist() for a in np.arange(0.2, 0.7, 0.1).tolist()]
+superformula_points = [superformula(*params) for params in superformula_params]
 
+# Custom NURBS evaluation function
 def basis_function(i, k, u, knot_vector):
     if k == 0:
         return 1.0 if knot_vector[i] <= u < knot_vector[i + 1] else 0.0
@@ -47,48 +57,26 @@ def calculate_nurbs_points(ctrlpts, weights, knotvector, degree, num_points=100,
         nurbs_points.append(numerator / (denominator + epsilon))
     return torch.stack(nurbs_points)
 
-# Custom NURBS Generator with valid knot vector layer
-class NURBSGenerator(nn.Module):
-    def __init__(self, input_dim, output_dim, degree, num_ctrlpts):
-        super(NURBSGenerator, self).__init__()
-        self.fc = nn.Sequential(
-            nn.Linear(input_dim, 128),
-            nn.ReLU(),
-            nn.Linear(128, 256),
-            nn.ReLU(),
-            nn.Linear(256, output_dim - (degree + num_ctrlpts + 1))
-        )
-
-    def forward(self, x):
-        params = self.fc(x)
-        return params
+# Initialize NURBS parameters
+degree = 3
+num_ctrlpts = 50
+knotvector = np.concatenate(([0] * (degree + 1), np.linspace(0, 1, num_ctrlpts - degree), [1] * (degree + 1)))
 
 # Initialize model, loss function, and optimizer
 input_dim = 4  # Superformula parameters
-output_dim = num_ctrlpts * 2 + num_ctrlpts + degree + num_ctrlpts + 1  # Control points, weights, and knot vector
+output_dim = num_ctrlpts * 2 + num_ctrlpts  # Control points and weights
 model = NURBSGenerator(input_dim, output_dim, degree, num_ctrlpts)
 criterion = nn.MSELoss()
 optimizer = optim.Adam(model.parameters(), lr=0.001)
 
-# Function to hook gradients
-def print_grad(grad):
-    print('Gradient:', grad)
+# # Function to hook gradients
+# def print_grad(grad):
+#     print('Gradient:', grad)
 
-# Attach hooks to model parameters
-for param in model.parameters():
-    param.register_hook(print_grad)
+# # Attach hooks to model parameters
+# for param in model.parameters():
+#     param.register_hook(print_grad)
 
-# Plotting function
-def plot_control_points(ctrlpts, epoch):
-    ctrlpts = ctrlpts.detach().numpy()
-    plt.figure()
-    plt.scatter(ctrlpts[:, 0], ctrlpts[:, 1], c='r', label='Control Points')
-    plt.title(f'Control Points at Epoch {epoch}')
-    plt.xlabel('x')
-    plt.ylabel('y')
-    plt.legend()
-    plt.grid(True)
-    plt.show()
 
 # Training loop
 num_epochs = 200
@@ -108,40 +96,35 @@ for epoch in range(num_epochs):
         ctrlpts = ctrlpts.requires_grad_()
         weights = weights.requires_grad_()
         
-        # Print control points before optimization
-        # print(f"Epoch {epoch}, Control Points Before Optimization: {ctrlpts}")
-
-        # Calculate NURBS points
-        nurbs_points = calculate_nurbs_points(ctrlpts.detach().numpy(), weights.detach().numpy(), knotvector, degree=degree,num_points=num_ctrlpts)
-        nurbs_points = torch.from_numpy(nurbs_points)
-        print(type(nurbs_points))
-        # Calculate loss
-        # loss = calculate_distance(nurbs_points, superformula_pts.detach().numpy())
-        print(nurbs_points)
+        # Calculate NURBS points using custom function
+        nurbs_points = calculate_nurbs_points(ctrlpts, weights, knotvector, degree)
         
-        loss = (nurbs_points - superformula_pts[:num_ctrlpts]).pow(2).sum()
+        # Calculate loss
+        loss = criterion(nurbs_points, superformula_pts[:nurbs_points.shape[0]])
         
         # Backward pass and optimization
         optimizer.zero_grad()
         loss.backward()
         
-        # Print gradients
-        for name, param in model.named_parameters():
-            if param.grad is not None:
-                print(f'Gradients for {name} at Epoch {epoch}: {param.grad}')
-            else:
-                print(f'No gradients for {name} at Epoch {epoch}')
+        # # Print gradients
+        # for name, param in model.named_parameters():
+        #     if param.grad is not None:
+        #         print(f'Gradients for {name} at Epoch {epoch}: {param.grad}')
+        #     else:
+        #         print(f'No gradients for {name} at Epoch {epoch}')
         
         optimizer.step()
         
-        # Print control points after optimization
-        # print(f"Epoch {epoch}, Control Points After Optimization: {ctrlpts}")
-
         tot_loss += loss.item()
         
     avg_loss = tot_loss / len(superformula_params)
     print(f'Epoch [{epoch}/{num_epochs}], Avg Loss: {avg_loss:.4f}')
     
-    if epoch % 10 == 0:
-        print(f'Epoch [{epoch}/{num_epochs}], Loss: {loss.item():.4f}')
-        plot_control_points(ctrlpts, epoch)
+    # if epoch % 10 == 0:
+    #     print(f'Epoch [{epoch}/{num_epochs}], Loss: {loss.item():.4f}')
+    #     # plot_control_points(ctrlpts, epoch)
+# Save the model
+torch.save(model.state_dict(), 'nurbs_generator.pth')
+print("Model saved successfully.")
+
+
