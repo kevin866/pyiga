@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from model_structure import NURBSGenerator
-
+from pyiga import approx, bspline
 
 # Superformula generation function
 def superformula(m, n1, n2, n3, a=1, b=1, num_points=100):
@@ -59,16 +59,18 @@ def calculate_nurbs_points(ctrlpts, weights, knotvector, degree, num_points=100,
 
 # Initialize NURBS parameters
 degree = 3
-num_ctrlpts = 50
-knotvector = np.concatenate(([0] * (degree + 1), np.linspace(0, 1, num_ctrlpts - degree), [1] * (degree + 1)))
-
-# Initialize model, loss function, and optimizer
+n_kv = 50
+knotvector = bspline.make_knots(degree, 0.0, 1.0, n_kv)
+num_ctrlpts = knotvector.numdofs
+knotvector = knotvector.kv
 input_dim = 4  # Superformula parameters
 output_dim = num_ctrlpts * 2 + num_ctrlpts  # Control points and weights
 model = NURBSGenerator(input_dim, output_dim, degree, num_ctrlpts)
 criterion = nn.MSELoss()
 optimizer = optim.Adam(model.parameters(), lr=0.001)
-
+# print(dir(knotvector))
+# print(knotvector.kv)
+# print(knotvector.p)
 # # Function to hook gradients
 # def print_grad(grad):
 #     print('Gradient:', grad)
