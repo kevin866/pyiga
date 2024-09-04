@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 # Superformula generation function
-def superformula(m, n1, n2, n3, a=1, b=1, num_points=100):
+def superformula(m, n1, n2, n3, a=1, b=1, num_points=500):
     phi = np.linspace(0, 2 * np.pi, num_points)
     r = (np.abs(np.cos(m * phi / 4) / a)**n2 + np.abs(np.sin(m * phi / 4) / b)**n3)**(-1 / n1)
     x = r * np.cos(phi)
