@@ -40,4 +40,4 @@ weights_np = weights.detach().numpy()
 
 nurbs = NurbsFunc((knotvector,), ctrlpts_np.copy(), weights=weights_np)
 vis.plot_geo(nurbs,res=500, linewidth=None, color='black')
-# plt.axis('equal');
+plt.axis('equal');

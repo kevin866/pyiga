@@ -5,6 +5,7 @@ import torch.optim as optim
 import matplotlib.pyplot as plt
 
 # Custom NURBS Generator with valid knot vector layer
+    
 class NURBSGenerator(nn.Module):
     def __init__(self, input_dim, output_dim, degree, num_ctrlpts):
         super(NURBSGenerator, self).__init__()
@@ -13,9 +14,14 @@ class NURBSGenerator(nn.Module):
             nn.ReLU(),
             nn.Linear(128, 256),
             nn.ReLU(),
+            nn.Linear(256, 512),  # New layer
+            nn.ReLU(),
+            nn.Linear(512, 256),  # New layer
+            nn.ReLU(),
             nn.Linear(256, output_dim)
         )
 
     def forward(self, x):
         params = self.fc(x)
         return params
+

@@ -100,6 +100,7 @@ class NurbsFunc(bspline._BaseSplineFunc):
             return tuple(shp)
 
     def grid_eval(self, gridaxes):
+        print("ggrid eval is used in nurbsfunc")
         assert len(gridaxes) == self.sdim, "Input has wrong dimension"
         # make sure axes are one-dimensional
         if not all(np.ndim(ax) == 1 for ax in gridaxes):

@@ -81,7 +81,7 @@ optimizer = optim.Adam(model.parameters(), lr=0.001)
 
 
 # Training loop
-num_epochs = 200
+num_epochs = 300
 for epoch in range(num_epochs):
     tot_loss = 0
     for params, superformula_pts in zip(superformula_params, superformula_points):
