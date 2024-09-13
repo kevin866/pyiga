@@ -44,16 +44,16 @@ print(superformula_points[0][:,:])
 # # Show the plot
 # plt.show()
 
-# np.random.shuffle(superformula_points)
+np.random.shuffle(superformula_points)
 
-# train_size = 1200
-# test_size = 200
+train_size = 1200
+test_size = 200
 
-# train_set = superformula_points[:train_size]
-# test_set = superformula_points[train_size:train_size + test_size]
+train_set = superformula_points[:train_size]
+test_set = superformula_points[train_size:train_size + test_size]
 
-# np.save('train.npy', train_set)
-# np.save('test.npy', test_set)
+np.save('train.npy', train_set)
+np.save('test.npy', test_set)
 
-# print("Train set shape:", train_set.shape)  
-# print("Test set shape:", test_set.shape)    
+print("Train set shape:", train_set.shape)  
+print("Test set shape:", test_set.shape)    
