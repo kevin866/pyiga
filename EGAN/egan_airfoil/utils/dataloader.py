@@ -3,7 +3,7 @@ import torch
 import math
 from torch.utils.data import DataLoader, Dataset
 # from .interpolation import interpolate
-from interpolation import interpolate
+from .interpolation import interpolate
 class UIUCAirfoilDataset(Dataset):
     r"""UIUC Airfoil Dataset. 
 
