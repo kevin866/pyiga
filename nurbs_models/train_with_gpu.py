@@ -78,7 +78,7 @@ for epoch in range(num_epochs):
         params = torch.from_numpy(params).float().to(device)
         superformula_pts = torch.from_numpy(superformula_pts).float().to(device)
 
-        output = model(params)
+        output = model(params).squeeze(0)
         ctrlpts, weights = output.split([num_ctrlpts * 2, num_ctrlpts])
         ctrlpts = ctrlpts.view(num_ctrlpts, 2).requires_grad_()
         weights = weights.view(num_ctrlpts).requires_grad_()
