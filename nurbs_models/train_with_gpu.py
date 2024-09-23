@@ -8,8 +8,8 @@ import os
 import time  # Import time module for tracking time
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-superformula_points = np.load('nurbs_models\data\superformula_points.npy')
-superformula_params = np.load('nurbs_models\data\superformula_params.npy')
+superformula_points = np.load('nurbs_models\data\superformula_points_toy.npy')
+superformula_params = np.load('nurbs_models\data\superformula_params_toy.npy')
 print(superformula_points.shape)
 print(superformula_params.shape)
 
@@ -61,7 +61,9 @@ input_dim = 4  # Superformula parameters
 output_dim = num_ctrlpts * 2 + num_ctrlpts  # Control points and weights
 model = NURBSGenerator(input_dim, output_dim, degree, num_ctrlpts)
 criterion = nn.MSELoss()
-optimizer = optim.Adam(model.parameters(), lr=0.001)
+optimizer = optim.Adam(model.parameters(), lr=0.00001)  # Reduced from 0.001
+scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=10)
+
 
 # # Check if GPU is available
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -92,9 +94,82 @@ for epoch in range(num_epochs):
         # Backward pass
         optimizer.zero_grad()
         loss.backward()
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
         optimizer.step()
 
         tot_loss += loss.item()
-
     avg_loss = tot_loss / len(superformula_params)
     print(f'Epoch [{epoch}/{num_epochs}], Avg Loss: {avg_loss:.4f}')
+    # Print epoch loss
+    # print(f'Epoch [{epoch+1}/{num_epochs}], Average Loss: {avg_loss:.4f}')
+
+    # Update learning rate
+    scheduler.step(avg_loss)
+
+    # Optional: Print current learning rate
+    current_lr = optimizer.param_groups[0]['lr']
+    print(f'Current LR: {current_lr}')
+    
+
+    
+    
+    # Assuming superformula_params and superformula_points are numpy arrays
+
+import torch
+from torch.utils.data import TensorDataset, DataLoader
+
+# Convert numpy arrays to PyTorch tensors
+superformula_params_tensor = torch.from_numpy(superformula_params).float()
+superformula_points_tensor = torch.from_numpy(superformula_points).float()
+
+# Create TensorDataset
+
+# Create DataLoader with batch_size equal to the dataset size
+# batch_size = len(dataset)  # This will be 12 in your case
+
+# # Training loop
+# num_epochs = 200
+# for epoch in range(num_epochs):
+#     total_loss = 0
+#     for params, superformula_pts in dataloader:
+#         # Move data to device
+#         # params = params.to(device).squeeze(0)  # Remove batch dimension
+#         # superformula_pts = superformula_pts.to(device).squeeze(0)  # Remove batch dimension
+#         params = params.float().to(device)
+#         superformula_pts = superformula_pts.float().to(device)
+#         # Forward pass
+#         output = model(params)
+#         ctrlpts, weights = output.split([num_ctrlpts * 2, num_ctrlpts])
+#         ctrlpts = ctrlpts.view(num_ctrlpts, 2)
+#         weights = weights.view(num_ctrlpts)
+
+#         # Calculate NURBS points
+#         nurbs_points = calculate_nurbs_points(ctrlpts, weights, knotvector, degree)
+
+#         # Compute loss
+#         loss = criterion(nurbs_points, superformula_pts[:nurbs_points.shape[0]])
+
+#         # Backward pass and optimization
+#         optimizer.zero_grad()
+#         loss.backward()
+#         torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+#         optimizer.step()
+
+#         total_loss += loss.item()
+
+#     # Compute average loss for the epoch
+#     avg_loss = total_loss / len(dataset)
+
+#     # Print epoch loss
+#     print(f'Epoch [{epoch+1}/{num_epochs}], Average Loss: {avg_loss:.4f}')
+
+#     # Update learning rate
+#     scheduler.step(avg_loss)
+
+#     # Optional: Print current learning rate
+#     current_lr = optimizer.param_groups[0]['lr']
+#     print(f'Current LR: {current_lr}')
+
+# Save the model
+torch.save(model.state_dict(), 'nurbs_generator_individual_samples.pth')
+print("Model saved successfully.")
