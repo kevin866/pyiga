@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader
 from models.cmpntsNewNURBS import InfoDiscriminator1D, BezierGenerator, NURBSGenerator
 from models.gansNEWNURBS import BezierEGAN, BezierSEGAN, ModernBezierSEGAN, NURBS
 from utils.dataloader import UIUCAirfoilDataset, NoiseGenerator
-from utils.shape_plot import plot_samples
+from utils.shape_plot2 import plot_samples
 from utils.metrics import ci_cons, ci_mll, ci_rsmth, ci_rdiv, ci_mmd
 import os
 
