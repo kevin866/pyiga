@@ -6,8 +6,8 @@ from datetime import datetime
 from sklearn.model_selection import train_test_split
 from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import DataLoader
-from models.cmpntsNewNURBS import InfoDiscriminator1D, BezierGenerator, NURBSGenerator
-from models.gansNEWNURBS import BezierEGAN, BezierSEGAN, ModernBezierSEGAN, NURBS
+from models.cmpntsNewNURBS import InfoDiscriminator1D, NURBSGenerator
+from models.gansNEWNURBS import NURBS
 from utils.dataloader import UIUCAirfoilDataset, NoiseGenerator
 from utils.shape_plot import plot_samples
 from utils.metrics import ci_cons, ci_mll, ci_rsmth, ci_rdiv, ci_mmd
@@ -102,8 +102,6 @@ def metrics(epoch, generator, writer, *args, **kwargs):
         mmd = ci_mmd(n_run, gen_func, X_test)
         writer.add_scalar('Metric/MMD', mmd[0], epoch+1)
         writer.add_scalar('Error/MMD', mmd[1], epoch+1)
-
-
 
         generator.train()
 

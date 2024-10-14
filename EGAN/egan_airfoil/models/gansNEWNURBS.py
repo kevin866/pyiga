@@ -117,10 +117,8 @@ class GAN:
             self.loss_G(batch, noise_gen, **kwargs).backward()
             self.optimizer_G.step()
 
-    def train(
-        self, dataloader, noise_gen, epochs, num_iter_D=5, num_iter_G=1, report_interval=5,
-        save_dir=None, save_iter_list=[100,], tb_writer=None, **kwargs
-        ):
+    def train(self, dataloader, noise_gen, epochs, num_iter_D=5, num_iter_G=1, report_interval=5,
+        save_dir=None, save_iter_list=[100,], tb_writer=None, **kwargs):
         for epoch in range(epochs):
             self._epoch_hook(epoch, epochs, noise_gen, tb_writer, **kwargs)
             for i, batch in enumerate(dataloader):

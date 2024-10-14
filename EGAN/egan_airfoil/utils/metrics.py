@@ -108,7 +108,7 @@ def variation(X):
     for x in X:
         diff = np.diff(x, axis=0)
         cov = np.cov(diff.T)
-        var += np.trace(cov)/cov.shape[0]
+        var += np.trace(cov)/cov.shape[0]  
     return var/X.shape[0]
     
 def ci_rsmth(n, gen_func, X_test):
