@@ -29,7 +29,7 @@ def superformula(r, L0, n, a=0.5, d=1, num_res=100):
     return np.vstack((x, y)).T
 
 # Generate a dataset of superformula points
-superformula_params = [(round(r, 2), L0, n, (round(a, 2))) for r in np.arange(0.2, 0.9, 0.1).tolist() for L0 in np.arange(15, 35, 5).tolist()
+superformula_params = [(round(r, 2), L0, n, (round(a, 2))) for r in np.arange(0.5, 0.9, 0.1).tolist() for L0 in np.arange(15, 35, 5).tolist()
                        for n in np.arange(2, 12, 2).tolist() for a in np.arange(0.2, 0.7, 0.1).tolist()]
 superformula_points = [superformula(*params) for params in superformula_params]
 
@@ -81,7 +81,7 @@ optimizer = optim.Adam(model.parameters(), lr=0.001)
 
 
 # Training loop
-num_epochs = 200
+num_epochs = 300
 for epoch in range(num_epochs):
     tot_loss = 0
     for params, superformula_pts in zip(superformula_params, superformula_points):

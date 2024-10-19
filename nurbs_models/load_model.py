@@ -6,6 +6,7 @@ import torch.optim as optim
 import matplotlib.pyplot as plt
 from pyiga.geometry import *
 from pyiga import approx, bspline
+
 degree = 3
 n_kv = 9
 # knotvector = np.concatenate(([0] * (degree + 1), np.linspace(0, 1, num_ctrlpts - degree), [1] * (degree + 1)))
@@ -29,8 +30,6 @@ ctrlpts, weights = output.split([num_ctrlpts*2, num_ctrlpts])
 ctrlpts = ctrlpts.view(num_ctrlpts, 2)
 weights = weights.view(num_ctrlpts)
 
-
-
 # Calculate NURBS points using custom function
 # nurbs_points = calculate_nurbs_points(ctrlpts, weights, knotvector, degree)
 from pyiga.geometry import *
@@ -41,4 +40,4 @@ weights_np = weights.detach().numpy()
 
 nurbs = NurbsFunc((knotvector,), ctrlpts_np.copy(), weights=weights_np)
 vis.plot_geo(nurbs,res=500, linewidth=None, color='black')
-# plt.axis('equal');
+plt.axis('equal');

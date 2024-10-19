@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from torch import Tensor
-
+import numpy as np
 _eps = 1e-7
 
 import torch
@@ -49,6 +49,7 @@ class NURBSLayer(nn.Module):
             return A + B
 
 
+    
     def forward(self, input: torch.Tensor, control_points: torch.Tensor, weights: torch.Tensor) -> torch.Tensor:
 
 
@@ -77,6 +78,29 @@ class NURBSLayer(nn.Module):
         dp = dp / (N_w + self.EPSILON)
 
         return dp, ub, intvls
+    def _prepare_for_outer(Cs, sdims):
+        """Bring the coefficient arrays (C1,C2)=Cs with source dimensions as given
+        into a suitable form to apply outer sum or outer product on them.
+        """
+        SD1, SD2 = (np.atleast_1d(C.shape[:sdim]).astype(np.int_) for (C,sdim) in zip(Cs,sdims))
+        VD1, VD2 = (np.atleast_1d(C.shape[sdim:]).astype(np.int_) for (C,sdim) in zip(Cs,sdims))
+        shape1 = np.concatenate((SD1, np.ones_like(SD2), VD1))
+        shape2 = np.concatenate((np.ones_like(SD1), SD2, VD2))
+        return np.reshape(Cs[0], shape1), np.reshape(Cs[1], shape2)
+    
+    def forward_2d(self, input: torch.Tensor, control_points: torch.Tensor, weights: torch.Tensor) -> torch.Tensor:
+        C1 = control_points
+        W1 = weights
+        C2 = np.tile(np.linspace(0.5,1,101), (2, 1)).T
+        W2 = np.ones(101)
+        C1, C2 = _prepare_for_outer((C1, C2), (1, 1))
+        W1, W2 = _prepare_for_outer((W1, W2), (1, 1))
+        kvs = self.kvs
+
+
+
+        return dp, ub, intvls
+    
 
 # This is just the implementation of the efficient layer, and does not include a complete model or training routine.
 # However, this should be more efficient than the original implementation.
@@ -157,6 +181,7 @@ class BSplineLayer(nn.Module):
         return dp, ub, intvls
 
         # torch.Size([16, 32, 192])
+    
 
 
 class BezierLayer(nn.Module):
