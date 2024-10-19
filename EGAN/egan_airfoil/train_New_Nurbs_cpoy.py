@@ -13,6 +13,7 @@ from utils.shape_plot2 import plot_samples
 from utils.metrics import ci_cons, ci_mll, ci_rsmth, ci_rdiv, ci_mmd
 import os
 
+# Hello All
 # Use GPU 0
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
