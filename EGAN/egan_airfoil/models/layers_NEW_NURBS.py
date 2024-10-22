@@ -138,7 +138,9 @@ class BSplineLayer(nn.Module):
         # print(input.shape,control_points.shape,weights.shape)torch.Size([512, 256]) torch.Size([512, 2, 32]) torch.Size([512, 1, 32])
         intvls = self.generate_intervals(input)
         ub = torch.cumsum(intvls, -1).clamp(0, 1).unsqueeze(1)
-
+        # generate fixed intervals
+        ub = np.linspace(0.0, 1.0, input)
+        intvls = np.cumsum(ub[::-1])[::-1] 
         N = []
         cache = {}
         for j in range(self.n_control_points):

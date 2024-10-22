@@ -3,7 +3,9 @@ import torch.nn as nn
 from torch import Tensor
 import numpy as np
 _eps = 1e-7
-
+from pyiga.geometry import *
+from pyiga import approx, bspline
+from pyiga import bspline, assemble, vform, geometry, vis, solvers
 import torch
 import torch.nn as nn
 
@@ -59,7 +61,8 @@ class NURBSLayer(nn.Module):
         # print('intvl',intvls.shape)
         ub = torch.cumsum(intvls, -1).clamp(0, 1).unsqueeze(1)
         # print('ub',ub.shape)
-
+        ub = np.linspace(0.0, 1.0, input)
+        intvls = np.cumsum(ub[::-1])[::-1] 
 
         N = [self.basis_function(ub, j, self.degree) for j in range(self.n_control_points)]
         N = torch.stack(N, dim=-2)
@@ -88,6 +91,19 @@ class NURBSLayer(nn.Module):
         shape2 = np.concatenate((np.ones_like(SD1), SD2, VD2))
         return np.reshape(Cs[0], shape1), np.reshape(Cs[1], shape2)
     
+    def forward_mesh(self, input: torch.Tensor, control_points: torch.Tensor, weights: torch.Tensor) -> torch.Tensor:
+        
+        ub = np.linspace(0.0, 1.0, input)
+        intvls = np.cumsum(ub[::-1])[::-1] 
+
+        nurbs = NurbsFunc((self.knots,), control_points, weights=weights)
+        g = geometry.line_segment([0.5,0.5], [1,1], intervals=100)
+        geo = geometry.outer_product(nurbs, g)
+        grid = (np.linspace(0.0, 1.0, 8),)
+        vis.plot_geo(geo, gridx = 50, gridy = 10, grid = grid, res = 400)
+
+        return dp, ub, intvls
+    
     def forward_2d(self, input: torch.Tensor, control_points: torch.Tensor, weights: torch.Tensor) -> torch.Tensor:
         C1 = control_points
         W1 = weights
@@ -95,7 +111,7 @@ class NURBSLayer(nn.Module):
         W2 = np.ones(101)
         C1, C2 = _prepare_for_outer((C1, C2), (1, 1))
         W1, W2 = _prepare_for_outer((W1, W2), (1, 1))
-        kvs = self.kvs
+        kvs1 = self.knots
 
 
 
