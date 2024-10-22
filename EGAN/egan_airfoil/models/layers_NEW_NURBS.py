@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from torch import Tensor
-
+import numpy as np
 _eps = 1e-7
 
 import torch
