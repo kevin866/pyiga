@@ -292,47 +292,6 @@ class SinkhornEGAN(EGAN):
     
     def _train_gen_criterion(self, batch, noise_gen, epoch): return True
 
-class BezierEGAN(EGAN, BezierGAN):
-    def loss_D(self, batch, noise_gen, **kwargs):
-        noise = noise_gen(); latent_code = noise[:, :noise_gen.sizes[0]]
-        fake = self.generate(noise)
-        dual_loss = self.dual_loss(batch, fake)
-        info_loss = self.info_loss(fake, latent_code)
-        return -dual_loss + info_loss
-
-    def loss_G(self, batch, noise_gen, **kwargs):
-        noise = noise_gen(); latent_code = noise[:, :noise_gen.sizes[0]]
-        fake, cp, w, pv, intvls = self.generator(noise)
-        dual_loss = self.dual_loss(batch, fake)
-        info_loss = self.info_loss(fake, latent_code)
-        reg_loss = self.regularizer(cp, w, pv, intvls)
-        return dual_loss + info_loss + 10 * reg_loss
-    
-    def _epoch_report(self, epoch, epochs, batch, noise_gen, report_interval, tb_writer, **kwargs):
-        if epoch % report_interval == 0:
-            noise = noise_gen(); latent_code = noise[:, :noise_gen.sizes[0]]
-            fake, cp, w, pv, intvls = self.generator(noise)
-            v, d_r, d_f = self._cal_v(batch, fake)
-            smooth = strong_convex_func(v, lamb=self.lamb).mean()
-            info_loss = self.info_loss(fake, latent_code)
-            reg_loss = self.regularizer(cp, w, pv, intvls)
-            if tb_writer:
-                # tb_writer.add_scalar('Dual Loss', dual_loss, epoch)
-                tb_writer.add_scalars('Dual Loss', {
-                                        'dual': d_r.mean() - d_f.mean() - smooth,
-                                        'emd': d_r.mean() - d_f.mean(),
-                                        'smooth': smooth
-                                        }, epoch)
-                tb_writer.add_scalar('Info Loss', info_loss, epoch)
-                tb_writer.add_scalar('Regularization Loss', reg_loss, epoch)
-            else:
-                print('[Epoch {}/{}] Dual loss: {:d}, Info loss: {:d}, Regularization loss: {:d}'.format(
-                    epoch, epochs,  d_r.mean() - d_f.mean() - smooth, info_loss, reg_loss))
-            try: 
-                kwargs['plotting'](epoch, fake)
-            except:
-                pass
-
 
 class NURBS(SinkhornEGAN, BezierGAN):
     def __init__(self, *args, w=1, **kwargs):
